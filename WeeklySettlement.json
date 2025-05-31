@@ -1,0 +1,523 @@
+{
+  "name": "WeeklySettlement",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        -160
+      ],
+      "id": "701cf616-4d16-4f72-b2b8-055c87d76427",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM orders\nWHERE order_status = 'Delivered'\nAND created_at >= NOW() - INTERVAL '7 days';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        20,
+        -160
+      ],
+      "id": "ecd46291-6756-469f-bb3e-e0b0000f40bd",
+      "name": "Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "sWriQ11NT5ETZ8wo",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a data processor AI for a food delivery company. Your task is to compute the delivery fee and payout distribution for each delivered order based on distance and delivery volume rules.\n\nFor each input record, follow this exact logic:\n\n1. If the `distance` is:\n   - Less than 5 km → set `delivery_fee = 2`\n   - Between 5 km (inclusive) and less than 7 km → set `delivery_fee = 3`\n   - 7 km or more → set `delivery_fee = 5`\n\n2. Check how many orders the courier delivered in the **same hour** as this order:\n   - If they delivered **more than 5 orders in that hour**, set:\n     - `courier_share_percent = 65`\n     - `company_share_percent = 35`\n   - Otherwise, set:\n     - `courier_share_percent = 60`\n     - `company_share_percent = 40`\n\n3. Calculate:\n   - `courier_amount = delivery_fee * (courier_share_percent / 100)`\n   - `company_amount = delivery_fee * (company_share_percent / 100)`\n\nReturn for each order:\n- order_id\n- courier_id\n- delivery_fee\n- courier_share_percent\n- company_share_percent\n- courier_amount\n- company_amount\n\nOnly use the values in the input and follow the logic exactly. Do not guess or infer anything else.",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        240,
+        -160
+      ],
+      "id": "9049ceee-4509-410d-a63a-adfb651be236",
+      "name": "OpenAI"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "fromEmail": "Settlements@fooddelivery.com",
+        "toEmail": "accounting@fooddelivery.com; treasurey@fooddelivery.com",
+        "subject": "Courier Delivery Charges List",
+        "message": "Dear Accounting and Treasury teams\nPlease see attached list of couriers records for past week. I have used my AI brain and calculated all the charges as per company regulations accordingly.\nUpon your approval I will update the records.\n\nRegards\nAutomation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        616,
+        -160
+      ],
+      "id": "5361b52a-c287-4456-88f4-669bf39a7308",
+      "name": "Send Email",
+      "webhookId": "839023bc-59d1-4d2e-b05b-43f3e7deafad"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "740c3d57-6516-47dc-94c0-e82a870b26d7",
+              "name": "courier_Id",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "9a596143-be26-4bfd-8240-882fb8315e97",
+              "name": "courier_approved_amount",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        836,
+        -160
+      ],
+      "id": "c33d5fb7-e433-42ef-a398-61b5fe774467",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "couriers",
+          "mode": "list",
+          "cachedResultName": "couriers"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "courier_id"
+          ],
+          "schema": [
+            {
+              "id": "courier_id",
+              "displayName": "courier_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "courier_full_name",
+              "displayName": "courier_full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "courier_address",
+              "displayName": "courier_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date_of_birth",
+              "displayName": "date_of_birth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gender",
+              "displayName": "gender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1056,
+        -60
+      ],
+      "id": "bc8fb79a-34b0-4be0-936d-eb4007716786",
+      "name": "Postgres1",
+      "credentials": {
+        "postgres": {
+          "id": "sWriQ11NT5ETZ8wo",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an AI agent working for a food delivery company. Your task is to process delivered orders and calculate how much we owe each restaurant.\n\nHere is the rule:\n- For each delivered order, the restaurant receives the full food amount. However, since the order data does not include item pricing, assume each order generates a flat revenue of **$20** for the restaurant (for settlement calculation only).\n\nInstructions:\n1. Group all orders by `restraunt_id` where `order_status = 'Delivered'`.\n2. For each group (i.e., each restaurant), calculate:\n   - `total_orders`: total number of delivered orders.\n   - `total_due`: total payment = total_orders * 20 (flat rate per order).\n\nReturn the following fields for each restaurant:\n- restraunt_id\n- total_orders\n- total_due\n- payment_method: \"cash\" (as per company policy)\n\nOnly use the input data provided. Do not invent or assume other fields.\n",
+              "role": "system"
+            },
+            {
+              "content": "$('InitialPostGreSQL').json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1276,
+        -60
+      ],
+      "id": "c0956ef4-19dc-45d4-9b65-c29690d31d30",
+      "name": "OpenAI1"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "fromEmail": "Settlements@fooddelivery.com",
+        "toEmail": "accounting@fooddelivery.com; treasurey@fooddelivery.com",
+        "subject": "Courier Delivery Charges List",
+        "message": "Dear Accounting and Treasury teams\nPlease see list of payments to resturant  in cash.\nUpon approval I will initiate the update of records process.\n\nRegards\nAutomation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1652,
+        -60
+      ],
+      "id": "9a61bf88-c4e9-459e-86a6-7136ac69fbc7",
+      "name": "Send Email1",
+      "webhookId": "839023bc-59d1-4d2e-b05b-43f3e7deafad"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "www.updateothersystems.com",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        -260
+      ],
+      "id": "0ec06f61-1a08-4e58-b972-993066ae508a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "www.updateothersystems.com",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1872,
+        -60
+      ],
+      "id": "82dafeec-7aed-4a50-a31f-7a1a84689cc6",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "content": "Trigger once a week on Monday 9 am"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -280,
+        -300
+      ],
+      "typeVersion": 1,
+      "id": "b84b68ee-63af-46d4-8b65-6608d5cbcd9f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Read the records from DB where order is delivered and done"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        -300
+      ],
+      "typeVersion": 1,
+      "id": "3d55fb13-9472-4daf-b0a2-d584feae6a96",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Use openAI agent to go through all records of delivered orders and calculate the amount to be paid to couriers based on company policy"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        260,
+        -300
+      ],
+      "typeVersion": 1,
+      "id": "ee3f2713-5d4f-4fbf-a13d-d57621765382",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Send the records to finance team for approval and wait"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        540,
+        -300
+      ],
+      "typeVersion": 1,
+      "id": "bd215c1f-ef53-48e9-a000-5ce364f7d5c3",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "If approved update any other company system records using API"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1100,
+        -400
+      ],
+      "typeVersion": 1,
+      "id": "0cc8fe07-ec4d-4d45-aa50-3faf85db1005",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "Use the orders records again in this OpenAI agent to calculate how much company has to pay to each resturant.",
+        "width": 360
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1220,
+        -180
+      ],
+      "typeVersion": 1,
+      "id": "3a676ec2-da24-4fda-ba3d-66e0e19c98ab",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "If approved update any other company system records using API"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1920,
+        -200
+      ],
+      "typeVersion": 1,
+      "id": "758f52b3-5aba-4f16-9dcc-c35d89b46f2d",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "Send the records to finance team for approval and wait"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1620,
+        -200
+      ],
+      "typeVersion": 1,
+      "id": "ce749843-606c-4842-86ff-31af8d75ceca",
+      "name": "Sticky Note8"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Postgres1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI1": {
+      "main": [
+        [
+          {
+            "node": "Send Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7c0f58ab-8c0b-4888-8e27-547b98aceffe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ab2a2d17679f75d71b671dc836a3df20dae28462dc0ef6bc44bd01ca142936b0"
+  },
+  "id": "8LVHmZ7ncb9H2stv",
+  "tags": []
+}
