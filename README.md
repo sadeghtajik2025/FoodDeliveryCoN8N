@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Food Delivery Automation Workflows (n8n)</title>
 </head>
 <body>
   <h1>Food Delivery Automation Workflows (n8n)</h1>
